@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 
 import fcl
 import meshcat
@@ -173,6 +173,6 @@ class GeometryManager:
             pose = SE3.Trans(midpoint) * SE3(SO3(R))
             # self.add_capsule(f"{key_prefix}_seg{i}", radius, length, pose)
             self.add_cylinder(f"{key_prefix}_seg{i}", radius, length, pose)
-            if i > 0:
+            if i > 1:
                 print(f"{key_prefix}_seg{i}_joint")
                 self.add_sphere(f"{key_prefix}_seg{i}_joint", radius, SE3.Trans(p0))
