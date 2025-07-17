@@ -174,5 +174,5 @@ class GeometryManager:
             # self.add_capsule(f"{key_prefix}_seg{i}", radius, length, pose)
             self.add_cylinder(f"{key_prefix}_seg{i}", radius, length, pose)
             if i > 1:
-                print(f"{key_prefix}_seg{i}_joint")
+                # print(f"{key_prefix}_seg{i}_joint")
                 self.add_sphere(f"{key_prefix}_seg{i}_joint", radius, SE3.Trans(p0))
