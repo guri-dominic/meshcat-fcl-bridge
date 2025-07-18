@@ -28,18 +28,19 @@ class GeometryManager:
         }
         # Initialize MeshCat
         if zmq_url is None:
-            self._vis = meshcat.Visualizer()
+            self._vis = None
         else:
             self._vis = meshcat.Visualizer(zmq_url=zmq_url)
-        print(f"MeshCat URL: {self._vis.url()}")
+            print(f"MeshCat URL: {self._vis.url()}")
         # Record storage
         self._records: dict[str, GeometryRecord] = {}
 
     def add_sphere(self, key: str, radius: float, pose: SE3 = SE3()):
         path = f"/{key}"
         # MeshCat
-        self._vis[path].set_object(mg.Sphere(radius))
-        self._vis[path].set_transform(pose.A)
+        if self._vis is not None:
+            self._vis[path].set_object(mg.Sphere(radius))
+            self._vis[path].set_transform(pose.A)
         # FCL
         obj = fcl.CollisionObject(
             fcl.Sphere(radius), fcl.Transform(pose.A[:3, :3], pose.A[:3, 3])
@@ -48,8 +49,9 @@ class GeometryManager:
 
     def add_box(self, key: str, size: Tuple[float, float, float], pose: SE3 = SE3()):
         path = f"/{key}"
-        self._vis[path].set_object(mg.Box(size))
-        self._vis[path].set_transform(pose.A)
+        if self._vis is not None:
+            self._vis[path].set_object(mg.Box(size))
+            self._vis[path].set_transform(pose.A)
         obj = fcl.CollisionObject(
             fcl.Box(*size), fcl.Transform(pose.A[:3, :3], pose.A[:3, 3])
         )
@@ -59,8 +61,9 @@ class GeometryManager:
         path = f"/{key}"
         # MeshCat: apply Y->Z offset
         off = self.meshcat_offsets["Cylinder"]
-        self._vis[path].set_object(mg.Cylinder(length, radius))
-        self._vis[path].set_transform((pose * off).A)
+        if self._vis is not None:
+            self._vis[path].set_object(mg.Cylinder(length, radius))
+            self._vis[path].set_transform((pose * off).A)
         # FCL
         obj = fcl.CollisionObject(
             fcl.Cylinder(radius, length), fcl.Transform(pose.A[:3, :3], pose.A[:3, 3])
@@ -72,17 +75,18 @@ class GeometryManager:
     def add_capsule(self, key: str, radius: float, length: float, pose: SE3 = SE3()):
         path = f"/{key}"
         # MeshCat body
-        off = self.meshcat_offsets["Capsule"]
-        self._vis[f"{path}/body"].set_object(mg.Cylinder(length, radius))
-        self._vis[f"{path}/body"].set_transform((pose * off).A)
-        # MeshCat caps
-        p1 = pose * SE3(0, 0, length / 2)
-        self._vis[f"{path}/cap1"].set_object(mg.Sphere(radius))
-        self._vis[f"{path}/cap1"].set_transform(p1.A)
-        p2 = pose * SE3(0, 0, -length / 2)
-        # print(f"p1={p1.t}  |  p2={p2.t}  |  length={length}  |  radius={radius}")
-        self._vis[f"{path}/cap2"].set_object(mg.Sphere(radius))
-        self._vis[f"{path}/cap2"].set_transform(p2.A)
+        if self._vis is not None:
+            off = self.meshcat_offsets["Capsule"]
+            self._vis[f"{path}/body"].set_object(mg.Cylinder(length, radius))
+            self._vis[f"{path}/body"].set_transform((pose * off).A)
+            # MeshCat caps
+            p1 = pose * SE3(0, 0, length / 2)
+            self._vis[f"{path}/cap1"].set_object(mg.Sphere(radius))
+            self._vis[f"{path}/cap1"].set_transform(p1.A)
+            p2 = pose * SE3(0, 0, -length / 2)
+            # print(f"p1={p1.t}  |  p2={p2.t}  |  length={length}  |  radius={radius}")
+            self._vis[f"{path}/cap2"].set_object(mg.Sphere(radius))
+            self._vis[f"{path}/cap2"].set_transform(p2.A)
         # FCL
         obj = fcl.CollisionObject(
             fcl.Capsule(radius, length), fcl.Transform(pose.A[:3, :3], pose.A[:3, 3])
@@ -93,22 +97,23 @@ class GeometryManager:
 
     def update(self, key: str, pose: SE3):
         rec = self._records[key]
-        if rec.geom_type in ("Cylinder", "Capsule"):
-            off = self.meshcat_offsets[rec.geom_type]
-            if rec.geom_type == "Cylinder":
-                self._vis[rec.meshcat_path].set_transform((pose * off).A)
+        if self._vis is not None:
+            if rec.geom_type in ("Cylinder", "Capsule"):
+                off = self.meshcat_offsets[rec.geom_type]
+                if rec.geom_type == "Cylinder":
+                    self._vis[rec.meshcat_path].set_transform((pose * off).A)
+                else:
+                    # Capsule: update body and caps
+                    self._vis[f"{rec.meshcat_path}/body"].set_transform((pose * off).A)
+                    half = rec.length / 2
+                    self._vis[f"{rec.meshcat_path}/cap1"].set_transform(
+                        (pose * SE3.Tz(half)).A
+                    )
+                    self._vis[f"{rec.meshcat_path}/cap2"].set_transform(
+                        (pose * SE3.Tz(-half)).A
+                    )
             else:
-                # Capsule: update body and caps
-                self._vis[f"{rec.meshcat_path}/body"].set_transform((pose * off).A)
-                half = rec.length / 2
-                self._vis[f"{rec.meshcat_path}/cap1"].set_transform(
-                    (pose * SE3.Tz(half)).A
-                )
-                self._vis[f"{rec.meshcat_path}/cap2"].set_transform(
-                    (pose * SE3.Tz(-half)).A
-                )
-        else:
-            self._vis[rec.meshcat_path].set_transform(pose.A)
+                self._vis[rec.meshcat_path].set_transform(pose.A)
         # FCL
         rec.fcl_obj.setTransform(fcl.Transform(pose.A[:3, :3], pose.A[:3, 3]))
 
@@ -128,16 +133,17 @@ class GeometryManager:
         return manager
 
     def clear(self, key: Optional[str] = None):
-        if key:
-            rec = self._records.pop(key, None)
-            if rec:
-                try:
-                    self._vis.delete(rec.meshcat_path)
-                except Exception as _e:
-                    self._vis[rec.meshcat_path].delete()
-            return
-        # clear entire scene
-        self._vis.delete()
+        if self._vis is not None:
+            if key:
+                rec = self._records.pop(key, None)
+                if rec:
+                    try:
+                        self._vis.delete(rec.meshcat_path)
+                    except Exception as _e:
+                        self._vis[rec.meshcat_path].delete()
+                return
+            # clear entire scene
+            self._vis.delete()
         self._records.clear()
 
     def add_mesh(self, key: str, mesh_file: str, pose: SE3 = SE3()):
@@ -147,8 +153,9 @@ class GeometryManager:
         verts = np.array(mesh.vertices, dtype=np.float64)
         faces = np.array(mesh.faces, dtype=np.int32)
         path = f"/{key}"
-        self._vis[path].set_object(mg.TriangularMeshGeometry(verts, faces))
-        self._vis[path].set_transform(pose.A)
+        if self._vis is not None:
+            self._vis[path].set_object(mg.TriangularMeshGeometry(verts, faces))
+            self._vis[path].set_transform(pose.A)
         model = fcl.BVHModel()
         model.beginModel(len(verts), len(faces))
         model.addSubModel(verts.tolist(), faces.tolist())
