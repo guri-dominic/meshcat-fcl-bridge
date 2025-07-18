@@ -120,6 +120,13 @@ class GeometryManager:
         fcl.collide(a, b, req, res)
         return res.is_collision
 
+    def collision_manager(self, filter=lambda ss: True):
+        manager = fcl.DynamicAABBTreeCollisionManager()
+        objects = [rec.fcl_obj for key, rec in self._records.items() if filter(key)]
+        manager.registerObjects(objects)
+        manager.setup()
+        return manager
+
     def clear(self, key: Optional[str] = None):
         if key:
             rec = self._records.pop(key, None)
