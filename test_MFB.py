@@ -7,7 +7,7 @@ from MFB import GeometryManager
 def _test_initialization_simple_collisions():
     import time
 
-    zmq_url = "tcp://127.0.0.1:6001"
+    zmq_url = "tcp://127.0.0.1:6002"
     gm = GeometryManager(zmq_url=zmq_url)
 
     pose = SE3.Tz(1.1)
@@ -32,7 +32,7 @@ def _test_cylinder():
     print("Cylinder Test")
     import time
 
-    zmq_url = "tcp://127.0.0.1:6001"
+    zmq_url = "tcp://127.0.0.1:6002"
     gm = GeometryManager(zmq_url=zmq_url)
     gm._vis.delete()
 
@@ -76,7 +76,7 @@ def _test_capsules():
     print("Capsule Test")
     import time
 
-    zmq_url = "tcp://127.0.0.1:6001"
+    zmq_url = "tcp://127.0.0.1:6002"
     gm = GeometryManager(zmq_url=zmq_url)
     gm.clear()
     gm._vis.delete()
@@ -119,7 +119,7 @@ def _test_kinematic_chains():
     print("Capsule Test")
     import time
 
-    zmq_url = "tcp://127.0.0.1:6001"
+    zmq_url = "tcp://127.0.0.1:6002"
     gm = GeometryManager(zmq_url=zmq_url)
     # gm.clear()
     gm._vis.delete()
