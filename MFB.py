@@ -35,11 +35,12 @@ class GeometryManager:
         # Record storage
         self._records: dict[str, GeometryRecord] = {}
 
-    def add_sphere(self, key: str, radius: float, pose: SE3 = SE3()):
+    def add_sphere(self, key: str, radius: float, pose: SE3 = SE3(), color=0xffffff, alpha=1.0):
         path = f"/{key}"
         # MeshCat
         if self._vis is not None:
-            self._vis[path].set_object(mg.Sphere(radius))
+            material = mg.MeshLambertMaterial(color=color, opacity=alpha)
+            self._vis[path].set_object(mg.Sphere(radius), material)
             self._vis[path].set_transform(pose.A)
         # FCL
         obj = fcl.CollisionObject(
@@ -47,22 +48,24 @@ class GeometryManager:
         )
         self._records[key] = GeometryRecord(path, obj, "Sphere", radius=radius)
 
-    def add_box(self, key: str, size: Tuple[float, float, float], pose: SE3 = SE3()):
+    def add_box(self, key: str, size: Tuple[float, float, float], pose: SE3 = SE3(), color=0xffffff, alpha=1.0):
         path = f"/{key}"
         if self._vis is not None:
-            self._vis[path].set_object(mg.Box(size))
+            material = mg.MeshLambertMaterial(color=color, opacity=alpha)
+            self._vis[path].set_object(mg.Box(size), material)
             self._vis[path].set_transform(pose.A)
         obj = fcl.CollisionObject(
             fcl.Box(*size), fcl.Transform(pose.A[:3, :3], pose.A[:3, 3])
         )
         self._records[key] = GeometryRecord(path, obj, "Box", size=size)
 
-    def add_cylinder(self, key: str, radius: float, length: float, pose: SE3 = SE3()):
+    def add_cylinder(self, key: str, radius: float, length: float, pose: SE3 = SE3(), color=0xffffff, alpha=1.0):
         path = f"/{key}"
         # MeshCat: apply Y->Z offset
         off = self.meshcat_offsets["Cylinder"]
         if self._vis is not None:
-            self._vis[path].set_object(mg.Cylinder(length, radius))
+            material = mg.MeshLambertMaterial(color=color, opacity=alpha)
+            self._vis[path].set_object(mg.Cylinder(length, radius), material)
             self._vis[path].set_transform((pose * off).A)
         # FCL
         obj = fcl.CollisionObject(
@@ -72,12 +75,13 @@ class GeometryManager:
             path, obj, "Cylinder", radius=radius, length=length
         )
 
-    def add_capsule(self, key: str, radius: float, length: float, pose: SE3 = SE3()):
+    def add_capsule(self, key: str, radius: float, length: float, pose: SE3 = SE3(), color=0xffffff, alpha=1.0):
         path = f"/{key}"
         # MeshCat body
         if self._vis is not None:
             off = self.meshcat_offsets["Capsule"]
-            self._vis[f"{path}/body"].set_object(mg.Cylinder(length, radius))
+            material = mg.MeshLambertMaterial(color=color, opacity=alpha)
+            self._vis[f"{path}/body"].set_object(mg.Cylinder(length, radius), material)
             self._vis[f"{path}/body"].set_transform((pose * off).A)
             # MeshCat caps
             p1 = pose * SE3(0, 0, length / 2)
@@ -146,7 +150,7 @@ class GeometryManager:
             self._vis.delete()
         self._records.clear()
 
-    def add_mesh(self, key: str, mesh_file: str, pose: SE3 = SE3()):
+    def add_mesh(self, key: str, mesh_file: str, pose: SE3 = SE3(), color=0xffffff, alpha=1.0):
         import trimesh
 
         mesh = trimesh.load(mesh_file, force="mesh")
@@ -154,7 +158,8 @@ class GeometryManager:
         faces = np.array(mesh.faces, dtype=np.int32)
         path = f"/{key}"
         if self._vis is not None:
-            self._vis[path].set_object(mg.TriangularMeshGeometry(verts, faces))
+            material = mg.MeshLambertMaterial(color=color, opacity=alpha)
+            self._vis[path].set_object(mg.TriangularMeshGeometry(verts, faces), material)
             self._vis[path].set_transform(pose.A)
         model = fcl.BVHModel()
         model.beginModel(len(verts), len(faces))
@@ -163,7 +168,7 @@ class GeometryManager:
         obj = fcl.CollisionObject(model, fcl.Transform(pose.A[:3, :3], pose.A[:3, 3]))
         self._records[key] = GeometryRecord(path, obj, "Mesh")
 
-    def add_chain(self, key_prefix: str, chain: List[SE3 | NDArray], radius: float):
+    def add_chain(self, key_prefix: str, chain: List[SE3 | NDArray], radius: float, color=0xffffff, alpha=1.0):
         """
         Add a kinematic chain of segments defined by 3D chain or SE3 poses.
         Each consecutive pair of chain gets a cylinder.
@@ -186,7 +191,7 @@ class GeometryManager:
             # pose = SE3(R, midpoint)
             pose = SE3.Trans(midpoint) * SE3(SO3(R))
             # self.add_capsule(f"{key_prefix}_seg{i}", radius, length, pose)
-            self.add_cylinder(f"{key_prefix}_seg{i}", radius, length, pose)
+            self.add_cylinder(f"{key_prefix}_seg{i}", radius, length, pose, color=color, alpha=alpha)
             if i > 1:
                 # print(f"{key_prefix}_seg{i}_joint")
-                self.add_sphere(f"{key_prefix}_seg{i}_joint", radius, SE3.Trans(p0))
+                self.add_sphere(f"{key_prefix}_seg{i}_joint", radius, SE3.Trans(p0), color=color, alpha=alpha)
